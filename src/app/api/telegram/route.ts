@@ -403,6 +403,46 @@ async function handleStats(message: TelegramMessage, code: string | null) {
   );
 }
 
+async function handleCheck(message: TelegramMessage, code: string | null) {
+  if (!code) {
+    await sendMessage(message.chat.id, "Usage: /check <code>");
+    return;
+  }
+
+  const upload = await getUploadByCode(code);
+  if (!upload) {
+    await sendMessage(message.chat.id, "Code not found.");
+    return;
+  }
+
+  const maxAccess =
+    upload.max_access === null ? "unlimited" : upload.max_access.toString();
+  const required = upload.required_channels?.join(", ") ?? "none";
+  const size =
+    upload.file_size === null ? "n/a" : `${upload.file_size.toString()} bytes`;
+  const fileName = upload.file_name ?? "n/a";
+  const mime = upload.mime_type ?? "n/a";
+  const textPreview =
+    upload.text_content && upload.text_content.length > 120
+      ? `${upload.text_content.slice(0, 120)}...`
+      : upload.text_content ?? "n/a";
+
+  const details = [
+    `Link: ${formatStartLink(upload.code)}`,
+    `Type: ${upload.type}`,
+    `Accessed: ${upload.access_count}`,
+    `Limit: ${maxAccess}`,
+    `Required: ${required}`,
+    `File name: ${fileName}`,
+    `MIME: ${mime}`,
+    `Size: ${size}`,
+    `Text: ${textPreview}`,
+    `Created: ${upload.created_at}`
+  ].join("\n");
+
+  await sendMessage(message.chat.id, details);
+}
+
 async function handleList(message: TelegramMessage) {
   const adminId = getAdminId();
   const uploads = await listUploads(adminId);
@@ -425,6 +465,7 @@ async function handleHelp(message: TelegramMessage, isAdmin: boolean) {
       "/upload limit=10 channels=@channelA,@groupB Your text",
       "/upload limit=5 channels=@channelA",
       "Then send a file/image/video/audio/voice/animation",
+      "/check <code>",
       "/stats <code>",
       "/list"
     ].join("\n");
@@ -473,6 +514,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (isAdmin && text.startsWith("/check")) {
+      const code = text.split(/\s+/)[1] ?? null;
+      await handleCheck(message, code);
+      return NextResponse.json({ ok: true });
+    }
+
     if (isAdmin && text.startsWith("/list")) {
       await handleList(message);
       return NextResponse.json({ ok: true });
@@ -488,7 +535,7 @@ export async function POST(request: Request) {
     if (isAdmin) {
       await sendMessage(
         message.chat.id,
-        "Commands: /upload, /stats, /list"
+        "Commands: /upload, /check, /stats, /list"
       );
     }
   } catch (error) {
