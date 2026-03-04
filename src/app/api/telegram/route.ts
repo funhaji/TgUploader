@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   createDraft,
   createUpload,
+  checkRateLimit,
   deleteAllUploads,
   deleteDraft,
   deleteUploadByCode,
@@ -516,6 +517,19 @@ export async function POST(request: Request) {
   const isAdmin = message.from?.id === adminId;
 
   try {
+    const fromId = message.from?.id ?? 0;
+    if (!isAdmin && fromId) {
+      const { maxRequests, windowSeconds } = getRateLimitConfig();
+      const rate = await checkRateLimit("telegram", fromId, maxRequests, windowSeconds);
+      if (!rate.allowed) {
+        await sendMessage(
+          message.chat.id,
+          "Too many requests. Please try again later."
+        );
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     if (text.startsWith("/start")) {
       const code = text.split(/\s+/)[1] ?? null;
       await handleStart(message, code);
@@ -606,4 +620,14 @@ function formatStartLink(code: string) {
     return `https://t.me/${username}?start=${code}`;
   }
   return `/start ${code}`;
+}
+
+function getRateLimitConfig() {
+  const maxRequests = Number(process.env.RATE_LIMIT_MAX ?? "10");
+  const windowSeconds = Number(process.env.RATE_LIMIT_WINDOW_SECONDS ?? "60");
+  return {
+    maxRequests: Number.isFinite(maxRequests) && maxRequests > 0 ? maxRequests : 10,
+    windowSeconds:
+      Number.isFinite(windowSeconds) && windowSeconds > 0 ? windowSeconds : 60
+  };
 }

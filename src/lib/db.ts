@@ -143,6 +143,62 @@ export async function deleteAllUploads(ownerId: number) {
   return data?.length ?? 0;
 }
 
+export async function checkRateLimit(
+  scope: string,
+  userId: number,
+  limit: number,
+  windowSeconds: number
+) {
+  const supabase = getSupabaseClient();
+  const now = new Date();
+  const { data, error } = await supabase
+    .from("rate_limits")
+    .select("id, window_start, request_count")
+    .eq("scope", scope)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) {
+    const { error: insertError } = await supabase.from("rate_limits").insert({
+      scope,
+      user_id: userId,
+      window_start: now.toISOString(),
+      request_count: 1
+    });
+    if (insertError) throw insertError;
+    return { allowed: true, remaining: Math.max(limit - 1, 0) };
+  }
+
+  const windowStart = new Date(data.window_start);
+  const elapsedSeconds = (now.getTime() - windowStart.getTime()) / 1000;
+  if (elapsedSeconds >= windowSeconds) {
+    const { error: resetError } = await supabase
+      .from("rate_limits")
+      .update({
+        window_start: now.toISOString(),
+        request_count: 1
+      })
+      .eq("id", data.id);
+    if (resetError) throw resetError;
+    return { allowed: true, remaining: Math.max(limit - 1, 0) };
+  }
+
+  const nextCount = data.request_count + 1;
+  if (nextCount > limit) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  const { error: updateError } = await supabase
+    .from("rate_limits")
+    .update({ request_count: nextCount })
+    .eq("id", data.id);
+  if (updateError) throw updateError;
+
+  return { allowed: true, remaining: Math.max(limit - nextCount, 0) };
+}
+
 export async function registerAccess(upload: UploadRecord, userId: number) {
   const supabase = getSupabaseClient();
   const { data: existing } = await supabase
