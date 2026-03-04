@@ -117,6 +117,32 @@ export async function listUploads(ownerId: number, limit = 10) {
   return data as UploadRecord[];
 }
 
+export async function deleteUploadByCode(ownerId: number, code: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("owner_id", ownerId)
+    .eq("code", code)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function deleteAllUploads(ownerId: number) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("owner_id", ownerId)
+    .select("id");
+
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
 export async function registerAccess(upload: UploadRecord, userId: number) {
   const supabase = getSupabaseClient();
   const { data: existing } = await supabase

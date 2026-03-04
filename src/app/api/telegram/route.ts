@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import {
   createDraft,
   createUpload,
+  deleteAllUploads,
   deleteDraft,
+  deleteUploadByCode,
   getLatestDraft,
   getUploadByCode,
   listUploads,
@@ -453,9 +455,29 @@ async function handleList(message: TelegramMessage) {
 
   const lines = uploads.map((upload) => {
     const limit = upload.max_access ?? "∞";
-    return `${formatStartLink(upload.code)} | ${upload.access_count}/${limit}`;
+    return `${formatStartLink(upload.code)} | ${upload.access_count}/${limit} | /delete ${upload.code}`;
   });
   await sendMessage(message.chat.id, lines.join("\n"));
+}
+
+async function handleDelete(message: TelegramMessage, code: string | null) {
+  if (!code) {
+    await sendMessage(message.chat.id, "Usage: /delete <code>");
+    return;
+  }
+  const adminId = getAdminId();
+  const deleted = await deleteUploadByCode(adminId, code);
+  if (!deleted) {
+    await sendMessage(message.chat.id, "Code not found.");
+    return;
+  }
+  await sendMessage(message.chat.id, "Deleted.");
+}
+
+async function handleDeleteAll(message: TelegramMessage) {
+  const adminId = getAdminId();
+  const count = await deleteAllUploads(adminId);
+  await sendMessage(message.chat.id, `Deleted ${count} uploads.`);
 }
 
 async function handleHelp(message: TelegramMessage, isAdmin: boolean) {
@@ -467,7 +489,9 @@ async function handleHelp(message: TelegramMessage, isAdmin: boolean) {
       "Then send a file/image/video/audio/voice/animation",
       "/check <code>",
       "/stats <code>",
-      "/list"
+      "/list or /files",
+      "/delete <code>",
+      "/deleteall"
     ].join("\n");
     await sendMessage(message.chat.id, helpText);
     return;
@@ -520,8 +544,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    if (isAdmin && text.startsWith("/list")) {
+    if (isAdmin && (text.startsWith("/list") || text.startsWith("/files"))) {
       await handleList(message);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (isAdmin && text.startsWith("/deleteall")) {
+      await handleDeleteAll(message);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (isAdmin && text.startsWith("/delete")) {
+      const code = text.split(/\s+/)[1] ?? null;
+      await handleDelete(message, code);
       return NextResponse.json({ ok: true });
     }
 
@@ -535,7 +570,7 @@ export async function POST(request: Request) {
     if (isAdmin) {
       await sendMessage(
         message.chat.id,
-        "Commands: /upload, /check, /stats, /list"
+        "Commands: /upload, /check, /stats, /list, /files, /delete, /deleteall"
       );
     }
   } catch (error) {
