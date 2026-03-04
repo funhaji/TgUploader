@@ -33,6 +33,18 @@ export async function sendMessage(chatId: number, text: string) {
   return telegramRequest("sendMessage", { chat_id: chatId, text });
 }
 
+export async function sendMessageWithKeyboard(
+  chatId: number,
+  text: string,
+  keyboard: Array<Array<{ text: string; url?: string }>>
+) {
+  return telegramRequest("sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup: { inline_keyboard: keyboard }
+  });
+}
+
 export async function sendDocument(chatId: number, fileId: string, caption?: string) {
   return telegramRequest("sendDocument", {
     chat_id: chatId,

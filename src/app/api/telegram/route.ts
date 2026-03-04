@@ -20,6 +20,7 @@ import {
   sendAudio,
   sendDocument,
   sendMessage,
+  sendMessageWithKeyboard,
   sendPhoto,
   sendVideo,
   sendVoice
@@ -281,10 +282,27 @@ async function handleStart(message: TelegramMessage, code: string | null) {
   if (required.length) {
     const missing = await ensureRequiredChannels(message.from?.id ?? 0, required);
     if (missing.length) {
-      await sendMessage(
-        message.chat.id,
-        `Join these channels/groups first: ${missing.join(", ")}`
-      );
+      const startLink = formatStartLink(code);
+      const channelButtons = missing
+        .filter((channel) => channel.startsWith("@"))
+        .map((channel) => {
+          const name = channel.replace(/^@/, "");
+          return [{ text: channel, url: `https://t.me/${name}` }];
+        });
+      const textLines = [
+        "Please join the required channels/groups:",
+        ...missing.map((channel) => `- ${channel}`),
+        "Then tap the button below."
+      ];
+      const keyboard = [...channelButtons];
+      if (startLink.startsWith("https://t.me/")) {
+        keyboard.push([{ text: "I joined", url: startLink }]);
+      }
+      if (keyboard.length) {
+        await sendMessageWithKeyboard(message.chat.id, textLines.join("\n"), keyboard);
+      } else {
+        await sendMessage(message.chat.id, textLines.join("\n"));
+      }
       return;
     }
   }
