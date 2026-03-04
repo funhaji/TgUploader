@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 
 export type UploadType =
   | "text"
@@ -41,6 +41,7 @@ export async function createDraft(
   maxAccess: number | null,
   requiredChannels: string[] | null
 ) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("drafts")
     .insert({
@@ -57,6 +58,7 @@ export async function createDraft(
 }
 
 export async function getLatestDraft(adminId: number) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("drafts")
     .select("*")
@@ -70,11 +72,13 @@ export async function getLatestDraft(adminId: number) {
 }
 
 export async function deleteDraft(draftId: string) {
+  const supabase = getSupabaseClient();
   const { error } = await supabase.from("drafts").delete().eq("id", draftId);
   if (error) throw error;
 }
 
 export async function createUpload(payload: Omit<UploadRecord, "id" | "created_at" | "access_count">) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("uploads")
     .insert({
@@ -89,6 +93,7 @@ export async function createUpload(payload: Omit<UploadRecord, "id" | "created_a
 }
 
 export async function getUploadByCode(code: string) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("uploads")
     .select("*")
@@ -100,6 +105,7 @@ export async function getUploadByCode(code: string) {
 }
 
 export async function listUploads(ownerId: number, limit = 10) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("uploads")
     .select("*")
@@ -112,6 +118,7 @@ export async function listUploads(ownerId: number, limit = 10) {
 }
 
 export async function registerAccess(upload: UploadRecord, userId: number) {
+  const supabase = getSupabaseClient();
   const { data: existing } = await supabase
     .from("accesses")
     .select("id")

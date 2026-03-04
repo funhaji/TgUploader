@@ -1,19 +1,21 @@
-const telegramToken =
-  process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN ?? "";
-
-if (!telegramToken) {
-  throw new Error("Telegram bot token is missing.");
-}
-
-const apiBase = `https://api.telegram.org/bot${telegramToken}`;
-
 type TelegramResponse<T> = {
   ok: boolean;
   result: T;
   description?: string;
 };
 
+function resolveTelegramToken() {
+  const telegramToken =
+    process.env.TELEGRAM_BOT_TOKEN ?? process.env.BOT_TOKEN ?? "";
+  if (!telegramToken) {
+    throw new Error("Telegram bot token is missing.");
+  }
+  return telegramToken;
+}
+
 async function telegramRequest<T>(method: string, body: Record<string, unknown>) {
+  const telegramToken = resolveTelegramToken();
+  const apiBase = `https://api.telegram.org/bot${telegramToken}`;
   const response = await fetch(`${apiBase}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

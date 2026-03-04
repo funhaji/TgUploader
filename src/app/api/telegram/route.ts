@@ -25,14 +25,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const adminId = Number(
-  process.env.ADMIN_USER_ID ?? process.env.TELEGRAM_ADMIN_ID ?? "0"
-);
-
-if (!adminId) {
-  throw new Error("ADMIN_USER_ID is missing.");
-}
-
 type TelegramMessage = {
   message_id: number;
   from?: { id: number; first_name?: string };
@@ -300,6 +292,7 @@ async function handleStart(message: TelegramMessage, code: string | null) {
 
 async function createUploadFromMessage(
   message: TelegramMessage,
+  adminId: number,
   maxAccess: number | null,
   requiredChannels: string[] | null,
   inlineContent: string | null
@@ -338,12 +331,14 @@ async function createUploadFromMessage(
 }
 
 async function handleUpload(message: TelegramMessage, text: string) {
+  const adminId = getAdminId();
   const { maxAccess, requiredChannels, inlineContent } = parseUploadOptions(text);
   const content = detectContentType(message);
 
   if (content.type || inlineContent) {
     const upload = await createUploadFromMessage(
       message,
+      adminId,
       maxAccess,
       requiredChannels,
       inlineContent
@@ -368,11 +363,13 @@ async function handleUpload(message: TelegramMessage, text: string) {
 }
 
 async function handleDraftContent(message: TelegramMessage) {
+  const adminId = getAdminId();
   const draft = await getLatestDraft(adminId);
   if (!draft) return false;
 
   const upload = await createUploadFromMessage(
     message,
+    adminId,
     draft.max_access,
     draft.required_channels,
     null
@@ -407,6 +404,7 @@ async function handleStats(message: TelegramMessage, code: string | null) {
 }
 
 async function handleList(message: TelegramMessage) {
+  const adminId = getAdminId();
   const uploads = await listUploads(adminId);
   if (!uploads.length) {
     await sendMessage(message.chat.id, "No uploads yet.");
@@ -429,6 +427,7 @@ export async function POST(request: Request) {
   }
 
   const text = message.text ?? message.caption ?? "";
+  const adminId = getAdminId();
   const isAdmin = message.from?.id === adminId;
 
   try {
@@ -478,4 +477,14 @@ export async function POST(request: Request) {
 
 export async function GET() {
   return NextResponse.json({ ok: true });
+}
+
+function getAdminId() {
+  const adminId = Number(
+    process.env.ADMIN_USER_ID ?? process.env.TELEGRAM_ADMIN_ID ?? "0"
+  );
+  if (!adminId) {
+    throw new Error("ADMIN_USER_ID is missing.");
+  }
+  return adminId;
 }
