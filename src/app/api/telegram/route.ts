@@ -345,7 +345,7 @@ async function handleUpload(message: TelegramMessage, text: string) {
     );
     await sendMessage(
       message.chat.id,
-      `Created. Use /start ${upload.code} to access.`
+      `Created. Access: ${formatStartLink(upload.code)}`
     );
     return;
   }
@@ -358,7 +358,7 @@ async function handleUpload(message: TelegramMessage, text: string) {
   );
   await sendMessage(
     message.chat.id,
-    `Send the content now. Code reserved: /start ${draft.code}`
+    `Send the content now. Code reserved: ${formatStartLink(draft.code)}`
   );
 }
 
@@ -377,7 +377,7 @@ async function handleDraftContent(message: TelegramMessage) {
   await deleteDraft(draft.id);
   await sendMessage(
     message.chat.id,
-    `Created. Use /start ${upload.code} to access.`
+    `Created. Access: ${formatStartLink(upload.code)}`
   );
   return true;
 }
@@ -413,9 +413,29 @@ async function handleList(message: TelegramMessage) {
 
   const lines = uploads.map((upload) => {
     const limit = upload.max_access ?? "∞";
-    return `${upload.code} | ${upload.access_count}/${limit}`;
+    return `${formatStartLink(upload.code)} | ${upload.access_count}/${limit}`;
   });
   await sendMessage(message.chat.id, lines.join("\n"));
+}
+
+async function handleHelp(message: TelegramMessage, isAdmin: boolean) {
+  if (isAdmin) {
+    const helpText = [
+      "Admin help:",
+      "/upload limit=10 channels=@channelA,@groupB Your text",
+      "/upload limit=5 channels=@channelA",
+      "Then send a file/image/video/audio/voice/animation",
+      "/stats <code>",
+      "/list"
+    ].join("\n");
+    await sendMessage(message.chat.id, helpText);
+    return;
+  }
+
+  await sendMessage(
+    message.chat.id,
+    "Use /start <code> to access shared content."
+  );
 }
 
 export async function POST(request: Request) {
@@ -434,6 +454,11 @@ export async function POST(request: Request) {
     if (text.startsWith("/start")) {
       const code = text.split(/\s+/)[1] ?? null;
       await handleStart(message, code);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (text.startsWith("/help") || text.toLowerCase() === "help") {
+      await handleHelp(message, isAdmin);
       return NextResponse.json({ ok: true });
     }
 
@@ -487,4 +512,16 @@ function getAdminId() {
     throw new Error("ADMIN_USER_ID is missing.");
   }
   return adminId;
+}
+
+function getBotUsername() {
+  return process.env.BOT_USERNAME ?? process.env.TELEGRAM_BOT_USERNAME ?? "";
+}
+
+function formatStartLink(code: string) {
+  const username = getBotUsername();
+  if (username) {
+    return `https://t.me/${username}?start=${code}`;
+  }
+  return `/start ${code}`;
 }
