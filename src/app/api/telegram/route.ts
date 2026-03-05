@@ -506,15 +506,23 @@ async function handleDeleteAll(message: TelegramMessage) {
 async function handleHelp(message: TelegramMessage, isAdmin: boolean) {
   if (isAdmin) {
     const helpText = [
-      "Admin help:",
-      "/upload limit=10 channels=@channelA,@groupB Your text",
-      "/upload limit=5 channels=@channelA",
-      "Then send a file/image/video/audio/voice/animation",
-      "/check <code>",
-      "/stats <code>",
-      "/list or /files",
-      "/delete <code>",
-      "/deleteall"
+      "🛡 *Admin Commands*",
+      "",
+      "📝 *Uploads*",
+      "• `/upload` - Start new upload (set limit/channels in text)",
+      "• `/list` or `/files` - List all uploads",
+      "• `/check <code>` - View upload details",
+      "• `/delete <code>` - Delete an upload",
+      "• `/deleteall` - Delete ALL uploads",
+      "",
+      "👥 *Users & Stats*",
+      "• `/users` - Total user count",
+      "• `/stats <code>` - Quick stats for code",
+      "• `/broadcast <msg>` - Send message to all users",
+      "",
+      "ℹ️ *Examples*",
+      "`/upload limit=10 channels=@mychannel`",
+      "_(Then send the file/text)_"
     ].join("\n");
     await sendMessage(message.chat.id, helpText);
     return;
@@ -667,10 +675,10 @@ export async function POST(request: Request) {
     }
 
     if (isAdmin) {
-      await sendMessage(
-        message.chat.id,
-        "Commands: /upload, /check, /stats, /list, /files, /delete, /deleteall, /users, /broadcast"
-      );
+      // If message is not a command but text, show help
+      if (!text.startsWith("/")) {
+        await handleHelp(message, isAdmin);
+      }
     }
   } catch (error) {
     const messageText =
