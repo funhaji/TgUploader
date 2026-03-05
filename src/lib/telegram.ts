@@ -77,6 +77,18 @@ export async function sendAnimation(chatId: number, fileId: string, caption?: st
   });
 }
 
+export async function copyMessage(
+  chatId: number,
+  fromChatId: number,
+  messageId: number
+) {
+  return telegramRequest("copyMessage", {
+    chat_id: chatId,
+    from_chat_id: fromChatId,
+    message_id: messageId
+  });
+}
+
 export async function getChatMember(chatId: string, userId: number) {
   return telegramRequest("getChatMember", {
     chat_id: chatId,

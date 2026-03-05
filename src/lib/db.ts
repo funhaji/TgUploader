@@ -228,3 +228,42 @@ export async function registerAccess(upload: UploadRecord, userId: number) {
   if (updateError) throw updateError;
   return { alreadyAccessed: false, accessCount: updated.access_count as number };
 }
+
+export async function upsertUser(id: number, firstName?: string, username?: string) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("users")
+    .upsert({
+      id,
+      first_name: firstName,
+      username,
+      last_seen: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) console.error("Error tracking user:", error);
+}
+
+export async function getTotalUsers() {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from("users")
+    .select("*", { count: "exact", head: true });
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function getAllUserIds() {
+  const supabase = getSupabaseClient();
+  // Note: For very large user bases, this should be paginated.
+  // Assuming < 10k users for this serverless implementation.
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .limit(10000);
+
+  if (error) throw error;
+  return data?.map((u) => u.id) ?? [];
+}
