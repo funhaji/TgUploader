@@ -32,3 +32,20 @@ create table if not exists public.accesses (
   created_at timestamptz not null default now(),
   unique (upload_id, user_id)
 );
+
+create table if not exists public.rate_limits (
+  id uuid primary key default gen_random_uuid(),
+  scope text not null,
+  user_id bigint not null,
+  window_start timestamptz not null,
+  request_count integer not null,
+  unique (scope, user_id)
+);
+
+create table if not exists public.users (
+  id bigint primary key,
+  first_name text,
+  username text,
+  last_seen timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);

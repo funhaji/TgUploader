@@ -267,3 +267,23 @@ export async function getAllUserIds() {
   if (error) throw error;
   return data?.map((u) => u.id) ?? [];
 }
+
+export async function getStats() {
+  const supabase = getSupabaseClient();
+  
+  const [
+    { count: totalUploads },
+    { count: totalUsers },
+    { data: recentUploads }
+  ] = await Promise.all([
+    supabase.from("uploads").select("*", { count: "exact", head: true }),
+    supabase.from("users").select("*", { count: "exact", head: true }),
+    supabase.from("uploads").select("*").order("created_at", { ascending: false }).limit(5)
+  ]);
+
+  return {
+    totalUploads: totalUploads ?? 0,
+    totalUsers: totalUsers ?? 0,
+    recentUploads: (recentUploads as UploadRecord[]) ?? []
+  };
+}
